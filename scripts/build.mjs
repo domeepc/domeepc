@@ -265,13 +265,52 @@ const CODE = [
   [['}', 'p']],
 ];
 
+// The programmer, seen from behind: headphones on, hood down, plant and mug
+// on the desk. Hands are drawn separately so they can type.
+const PERSON = [
+  /* 10 */ '                    .=====.',
+  /* 11 */ "    \\\\  //       .='.;';';'.=.",
+  /* 12 */ "   \\\\\\\\////     //;';';';';';\\\\",
+  /* 13 */ "    \\\\\\|//     |/';';';';';';'\\|",
+  /* 14 */ "     \\\\|/     .-|';';';';';';';|-.",
+  /* 15 */ "    .-'|'-.   | ||';';';';';';'|| |    .-----.",
+  /* 16 */ "    |  ~  |   '-|';';';';';';'|-'    |     |]",
+  /* 17 */ "    '.___.'     '.;';';';';'.'       '-----'",
+  /* 18 */ "               _____.-'    '-._____",
+  /* 19 */ "            .-'     \\  .--.  /     '-.",
+  /* 20 */ "           /         '-|  |-'         \\",
+  /* 21 */ "          /            '--'            \\",
+  /* 22 */ '  _______/______________________________\\____',
+  /* 23 */ '  |   [__][__][__][__][__][__][__][__][__]   |',
+  /* 24 */ '  |__________________________________________|',
+];
+
+/** Colour a scene row: plant leaves and headphones in acid, hair texture dim. */
+function tint(line, i) {
+  const parts = [];
+  [...line].forEach((ch, c) => {
+    let k = 'p';
+    if (i >= 22) k = '[]'.includes(ch) || (i === 23 && ch === '_' && c > 4 && c < 42) ? 'f' : 'd';
+    else if (c < 12) k = '\\/|'.includes(ch) && i < 15 ? 'a' : ch === '~' ? 'a' : 'd';
+    else if (c >= 37) k = 'd';
+    else if ('=#'.includes(ch)) k = 'a';
+    else if (i >= 14 && i <= 16 && (c <= 16 || c >= 31)) k = 'a'; // headphone cups
+    else if (";'".includes(ch) && i >= 11 && i <= 17 && c > 16 && c < 31) k = 'd';
+    if (ch === ' ') k = parts.length ? parts.at(-1)[1] : 'p';
+    if (parts.length && parts.at(-1)[1] === k) parts.at(-1)[0] += ch;
+    else parts.push([ch, k]);
+  });
+  return parts;
+}
+
 /**
  * Static scene drawn once; only the code (clip-typed), the cursor,
- * the hands and the steam move. Returns [markup, css, width, height].
+ * the hands, the steam and the power LED move. Returns [markup, css].
  */
 function coder(x0, y0) {
   const FS = 9, LH = 11, cw = FS * CW;
-  const SW = 34; // screen inner width
+  const SW = 36; // screen inner width
+  const M = 5; // monitor left column
   const row = (i) => y0 + i * LH + FS;
   const col = (c) => x0 + c * cw;
   let s = '';
@@ -279,26 +318,21 @@ function coder(x0, y0) {
   const T = (c, i, parts) => (s += text(col(c), row(i), parts, { size: FS }));
 
   // monitor
-  T(0, 0, [['.' + '-'.repeat(SW + 2) + '.', 'd']]);
-  T(0, 1, [['| ', 'd'], ['● ● ●', 'a'], ['   gearbox.c', 'd'], [' '.repeat(SW - 17) + ' |', 'd']]);
-  T(0, 2, [['|' + '-'.repeat(SW + 2) + '|', 'd']]);
-  for (let i = 0; i < CODE.length + 1; i++) {
-    T(0, 3 + i, [['| ', 'd'], [i < CODE.length ? `${i + 1}` : ' ', 'f'], [' '.repeat(SW - 1) + ' |', 'd']]);
+  const title = '~/fesb-racing/gearbox.c';
+  T(M, 0, [['.' + '-'.repeat(SW) + '.', 'd']]);
+  T(M, 1, [['|  ', 'd'], ['● ● ●', 'a'], [' '.repeat(SW - 8 - title.length) + title + ' ', 'd'], ['|', 'd']]);
+  T(M, 2, [['|' + '-'.repeat(SW) + '|', 'd']]);
+  for (let i = 0; i < 6; i++) {
+    T(M, 3 + i, [['| ', 'd'], [i < CODE.length ? `${i + 1}` : ' ', 'f'], [' '.repeat(SW - 2), ''], ['|', 'd']]);
   }
-  T(0, 9, [["'" + '-'.repeat(SW + 2) + "'", 'd']]);
-  // the programmer, from behind
-  T(14, 10, [['_.------._', 'p']]);
-  T(12, 11, [[".'", 'p'], ['  ~~~~~~  ', 'd'], ["'.", 'p']]);
-  T(11, 12, [['/', 'p'], ['  ~~~~~~~~~~  ', 'd'], ['\\', 'p']]);
-  T(11, 13, [['|              |', 'p']]);
-  T(12, 14, [['\\            /', 'p']]);
-  T(8, 15, [[".-''`-.________.-`''-.", 'p']]);
-  T(7, 16, [['/                      \\', 'p']]);
-  T(0, 17, [['_'.repeat(SW + 4), 'd']]);
-  T(0, 18, [['|  ', 'd'], ['[_][_][_][_][_][_][_][_][_][_]', 'f'], ['   |', 'd']]);
-  T(0, 19, [['|' + '_'.repeat(SW + 2) + '|', 'd']]);
-  // mug
-  T(SW + 5, 17, [['c[__]', 'd']]);
+  const gap = 8, side = (SW - gap) / 2;
+  T(M, 9, [["'" + '-'.repeat(side) + '.' + ' '.repeat(gap - 2) + '.' + '-'.repeat(side) + "'", 'd']]);
+  s += `<g class="led">${text(col(M + SW - 1), row(8), '°', { size: FS, cls: 'a' })}</g>`;
+  css += `
+.led{animation:led 3.2s steps(1,end) infinite}
+@keyframes led{0%,70%{opacity:1}71%,74%{opacity:.25}75%,100%{opacity:1}}`;
+
+  PERSON.forEach((line, k) => T(0, 10 + k, tint(line, 10 + k)));
 
   // code, typed line by line
   const period = 11;
@@ -309,7 +343,7 @@ function coder(x0, y0) {
   CODE.forEach((parts, i) => {
     const len = parts.reduce((n, [p]) => n + p.length, 0);
     const a = pct(t), b = pct(t + len * cps);
-    const cx = col(4), y = row(3 + i);
+    const cx = col(M + 4), y = row(3 + i);
     css += `
 .k${i}{transform-box:view-box;transform-origin:${r(cx)}px 0;transform:scaleX(0);animation:k${i} ${period}s infinite}
 @keyframes k${i}{0%,${a}%{transform:scaleX(0);animation-timing-function:steps(${len},end)}${b}%,${end}%{transform:scaleX(1)}${r(end + 0.5)}%,100%{transform:scaleX(0)}}
@@ -323,24 +357,26 @@ function coder(x0, y0) {
   css += `
 @media (prefers-reduced-motion:reduce){${CODE.map((_, i) => `.k${i}`).join(',')}{transform:none}}`;
 
-  // hands: one presses a key while the other lifts
-  const up = (c) => [[c, 16, '.--.'], [c, 17, '|__|']];
-  const down = (c) => [[c, 17, '.--.']];
-  const pose = (l, rr) => [...l(3), ...rr(SW - 3)].map(([c, i, g]) => text(col(c), row(i), g, { size: FS, cls: 'p' })).join('');
-  const clear = (c) => `<rect x="${r(col(c))}" y="${row(16) - FS}" width="${r(4 * cw)}" height="${LH * 2}" fill="${C.ink}"/>`;
-  const [hands, handsCss] = frames('hd', [clear(3) + clear(SW - 3) + pose(up, down), clear(3) + clear(SW - 3) + pose(down, up)], 0.36);
+  // hands on the keyboard: one presses while the other lifts
+  const L = 13, R = 33;
+  const up = (c) => text(col(c), row(21), '.--.', { size: FS, cls: 'p' }) + text(col(c), row(22), '|__|', { size: FS, cls: 'p' });
+  const down = (c) => text(col(c), row(22), '.--.', { size: FS, cls: 'p' });
+  const clear = (c) => `<rect x="${r(col(c))}" y="${row(21) - FS + 1}" width="${r(4 * cw)}" height="${LH * 2 - 1}" fill="${C.ink}"/>`;
+  const [hands, handsCss] = frames('hd', [clear(L) + clear(R) + up(L) + down(R), clear(L) + clear(R) + down(L) + up(R)], 0.36);
   css += handsCss;
   s += hands;
 
-  // steam
+  // steam over the mug
+  const sx = col(40);
   const [steam, steamCss] = frames('st', [
-    text(col(SW + 6), row(15), '( )', { size: FS, cls: 'f' }) + text(col(SW + 6), row(16), ' )', { size: FS, cls: 'f' }),
-    text(col(SW + 6), row(15), ' ) ', { size: FS, cls: 'f' }) + text(col(SW + 6), row(16), '( ', { size: FS, cls: 'f' }),
-  ], 1.4);
+    text(sx, row(13), '( (', { size: FS, cls: 'd' }) + text(sx, row(14), ' ) )', { size: FS, cls: 'f' }),
+    text(sx, row(13), ' ) )', { size: FS, cls: 'd' }) + text(sx, row(14), '( (', { size: FS, cls: 'f' }),
+    text(sx, row(12), ' (', { size: FS, cls: 'f' }) + text(sx, row(13), '  ) (', { size: FS, cls: 'd' }) + text(sx, row(14), ' ( )', { size: FS, cls: 'f' }),
+  ], 1.8);
   css += steamCss;
   s += steam;
 
-  return [s, css, (SW + 11) * cw, 20 * LH];
+  return [s, css];
 }
 
 /* ── 00 hero ──────────────────────────────────────────────────────── */
@@ -364,7 +400,7 @@ function hero() {
   s += `<rect x="0" y="50" width="${W}" height="1" fill="${C.line}"/>`;
 
   // the coder, right side
-  const [scene, sceneCss] = coder(W - PAD - 45 * 9 * CW + 6, 88);
+  const [scene, sceneCss] = coder(W - PAD - 46 * 9 * CW + 4, 70);
   css += sceneCss;
   s += scene;
 
