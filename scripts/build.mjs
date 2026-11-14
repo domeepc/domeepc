@@ -141,14 +141,18 @@ const TALK = [
 
 /* ── design tokens (portfolio globals.css) ─────────────────────────── */
 
+// Light edition of the portfolio palette: same tokens, inverted ground.
+// Bright acid is kept for fills (blocks, cursors, primary button); accent text
+// uses a deeper lime so it stays readable on white (≈5.9:1).
 const C = {
-  ink: '#0b0b0a',
-  ink2: '#121210',
-  paper: '#ebe8e1',
-  dim: '#8b887f',
-  faint: '#3a3935',
-  line: '#262522',
+  ink: '#ffffff',
+  ink2: '#f6f5f1',
+  paper: '#0b0b0a',
+  dim: '#6b6860',
+  faint: '#bdb9b0',
+  line: '#e4e1da',
   acid: '#c8ff2e',
+  accent: '#4f7000',
 };
 const W = 880; // GitHub's profile README column
 const PAD = 32;
@@ -166,7 +170,7 @@ const r = (n) => Math.round(n * 100) / 100;
 
 const BASE_CSS = `
 text{font-family:J,'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-feature-settings:'calt' 0,'liga' 0;white-space:pre;fill:${C.paper}}
-.p{fill:${C.paper}}.d{fill:${C.dim}}.f{fill:${C.faint}}.a{fill:${C.acid}}.k{fill:${C.ink}}
+.p{fill:${C.paper}}.d{fill:${C.dim}}.f{fill:${C.faint}}.a{fill:${C.accent}}.A{fill:${C.acid}}.k{fill:${C.ink}}
 .b{font-weight:800}.u{text-transform:uppercase}
 .blink{animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
@@ -200,6 +204,12 @@ function text(x, y, parts, { size = 13, cls = '', extra = '' } = {}) {
   return `<text x="${r(x)}" y="${r(y)}" font-size="${size}" ${cls ? `class="${cls}"` : ''} ${extra}>${spans}</text>`;
 }
 
+/** Banner row → runs: solid blocks in one tone, the ╗═║ shadow strokes in another. */
+function blocks(row, cls) {
+  const [solid, shade] = cls === 'a' ? ['A', 'p'] : ['p', 'f'];
+  return row.split(/(█+)/).filter(Boolean).map((t) => [t, t[0] === '█' ? solid : shade]);
+}
+
 function wrap(str, cols) {
   const out = [];
   let line = '';
@@ -229,22 +239,6 @@ function box(x, y, w, h, label) {
   return s;
 }
 
-/** `// 01 ────────── ABOUT`, the big title, then `$ command█`. Returns [markup, height]. */
-function sectionHeader(index, title, command, y0 = 44) {
-  const ls = 2.4;
-  const right = title.toUpperCase();
-  const rw = right.length * (12 * CW + ls);
-  const lx = PAD + 70;
-  const lineW = W - PAD - rw - 18 - lx;
-  let s = text(PAD, y0, `// ${index}`, { size: 12, cls: 'a', extra: `letter-spacing="${ls}"` });
-  s += `<rect class="draw" x="${lx}" y="${y0 - 4.5}" width="${r(lineW)}" height="1" fill="${C.faint}"/>`;
-  s += text(W - PAD - rw, y0, right, { size: 12, cls: 'd', extra: `letter-spacing="${ls}"` });
-  s += `<g class="rise" style="animation-delay:.25s">${text(PAD - 3, y0 + 84, right, { size: 76, cls: 'b', extra: 'letter-spacing="-2"' })}</g>`;
-  s += `<g class="rise" style="animation-delay:.5s">${text(PAD, y0 + 124, [['$ ', 'a'], [command, 'd']], { size: 13 })}`;
-  s += `<rect class="blink" x="${r(PAD + (command.length + 2.4) * 13 * CW)}" y="${y0 + 113}" width="8" height="14" fill="${C.acid}"/></g>`;
-  return [s, y0 + 160];
-}
-
 /**
  * Frame-by-frame animation without JS: every frame is a <g> that is visible for
  * 1/n of the cycle. Negative delays put each frame in its own slot.
@@ -264,60 +258,98 @@ function frames(name, list, period, cls = '') {
   return [`<g>${body}</g>`, css];
 }
 
-/* ── ascii donut (after Andy Sloane's donut.c, as in the portfolio hero) ── */
+/* ── ascii coder: someone at a desk, typing C for the race car ───────── */
 
-function donutFrames(cols, rows, count) {
-  const ramp = '.,-~:;=!*#$@';
-  const out = [];
-  for (let f = 0; f < count; f++) {
-    const A = 1 + (f / count) * Math.PI * 2;
-    const B = 0.5 + (f / count) * Math.PI * 2; // whole turns per loop keep it seamless
-    const cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
-    const z = new Float32Array(cols * rows);
-    const l = new Int8Array(cols * rows).fill(-1);
-    const K2 = 5, K1 = (cols * K2 * 3) / (8 * 3);
-    for (let t = 0; t < 6.28; t += 0.07) {
-      const ct = Math.cos(t), st = Math.sin(t);
-      const cx = 2 + ct, cy = st; // R2 + R1·cosθ, R1·sinθ
-      for (let p = 0; p < 6.28; p += 0.02) {
-        const cp = Math.cos(p), sp = Math.sin(p);
-        const x3 = cx * (cB * cp + sA * sB * sp) - cy * cA * sB;
-        const y3 = cx * (sB * cp - sA * cB * sp) + cy * cA * cB;
-        const D = 1 / (K2 + cA * cx * sp + cy * sA);
-        const x = Math.floor(cols / 2 + K1 * D * x3);
-        const y = Math.floor(rows / 2 - (K1 / 2) * D * y3);
-        if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
-        const L = cp * ct * sB - cA * ct * sp - sA * st + cB * (cA * st - ct * sA * sp);
-        const o = x + cols * y;
-        if (D > z[o]) {
-          z[o] = D;
-          l[o] = L > 0 ? Math.floor(L * 8) : 0;
-        }
-      }
-    }
-    const tone = (n) => (n < 0 ? null : n <= 2 ? 'f' : n <= 6 ? 'd' : n <= 9 ? 'p' : 'a');
-    const lines = [];
-    for (let y = 0; y < rows; y++) {
-      const parts = [];
-      for (let x = 0; x < cols; x++) {
-        const n = l[x + cols * y];
-        const ch = n < 0 ? ' ' : ramp[Math.min(n, 11)];
-        const c = tone(n) ?? '';
-        if (parts.length && parts.at(-1)[1] === c) parts.at(-1)[0] += ch;
-        else parts.push([ch, c]);
-      }
-      while (parts.length && parts.at(-1)[1] === '') parts.pop();
-      lines.push(parts);
-    }
-    out.push(lines);
+const CODE = [
+  [['int ', 'a'], ['shift(', 'p'], ['int ', 'a'], ['rpm) {', 'p']],
+  [['  if ', 'a'], ['(rpm > ', 'p'], ['9000', 'a'], [')', 'p']],
+  [['    return ', 'a'], ['gear + ', 'p'], ['1', 'a'], [';', 'p']],
+  [['  return ', 'a'], ['gear;', 'p']],
+  [['}', 'p']],
+];
+
+/**
+ * Static scene drawn once; only the code (clip-typed), the cursor,
+ * the hands and the steam move. Returns [markup, css, width, height].
+ */
+function coder(x0, y0) {
+  const FS = 9, LH = 11, cw = FS * CW;
+  const SW = 34; // screen inner width
+  const row = (i) => y0 + i * LH + FS;
+  const col = (c) => x0 + c * cw;
+  let s = '';
+  let css = '';
+  const T = (c, i, parts) => (s += text(col(c), row(i), parts, { size: FS }));
+
+  // monitor
+  T(0, 0, [['.' + '-'.repeat(SW + 2) + '.', 'd']]);
+  T(0, 1, [['| ', 'd'], ['● ● ●', 'a'], ['   gearbox.c', 'd'], [' '.repeat(SW - 17) + ' |', 'd']]);
+  T(0, 2, [['|' + '-'.repeat(SW + 2) + '|', 'd']]);
+  for (let i = 0; i < CODE.length + 1; i++) {
+    T(0, 3 + i, [['| ', 'd'], [i < CODE.length ? `${i + 1}` : ' ', 'f'], [' '.repeat(SW - 1) + ' |', 'd']]);
   }
-  return out;
+  T(0, 9, [["'" + '-'.repeat(SW + 2) + "'", 'd']]);
+  // the programmer, from behind
+  T(14, 10, [['_.------._', 'p']]);
+  T(12, 11, [[".'", 'p'], ['  ~~~~~~  ', 'd'], ["'.", 'p']]);
+  T(11, 12, [['/', 'p'], ['  ~~~~~~~~~~  ', 'd'], ['\\', 'p']]);
+  T(11, 13, [['|              |', 'p']]);
+  T(12, 14, [['\\            /', 'p']]);
+  T(8, 15, [[".-''`-.________.-`''-.", 'p']]);
+  T(7, 16, [['/                      \\', 'p']]);
+  T(0, 17, [['_'.repeat(SW + 4), 'd']]);
+  T(0, 18, [['|  ', 'd'], ['[_][_][_][_][_][_][_][_][_][_]', 'f'], ['   |', 'd']]);
+  T(0, 19, [['|' + '_'.repeat(SW + 2) + '|', 'd']]);
+  // mug
+  T(SW + 5, 17, [['c[__]', 'd']]);
+
+  // code, typed line by line
+  const period = 11;
+  const cps = 0.075; // seconds per character
+  let t = 0.6;
+  const pct = (sec) => r((sec / period) * 100);
+  const end = 92;
+  CODE.forEach((parts, i) => {
+    const len = parts.reduce((n, [p]) => n + p.length, 0);
+    const a = pct(t), b = pct(t + len * cps);
+    const cx = col(4), y = row(3 + i);
+    css += `
+.k${i}{transform-box:view-box;transform-origin:${r(cx)}px 0;transform:scaleX(0);animation:k${i} ${period}s infinite}
+@keyframes k${i}{0%,${a}%{transform:scaleX(0);animation-timing-function:steps(${len},end)}${b}%,${end}%{transform:scaleX(1)}${r(end + 0.5)}%,100%{transform:scaleX(0)}}
+.q${i}{opacity:0;animation:q${i} ${period}s infinite}
+@keyframes q${i}{0%,${a}%{opacity:0;transform:translateX(0);animation-timing-function:steps(${len},end)}${r(a + 0.01)}%{opacity:1}${b}%{opacity:1;transform:translateX(${r(len * cw)}px)}${i === CODE.length - 1 ? `${end}%{opacity:1;transform:translateX(${r(len * cw)}px)}${r(end + 0.5)}%` : `${r(b + 0.01)}%`},100%{opacity:0;transform:translateX(${r(len * cw)}px)}}`;
+    s += `<clipPath id="kc${i}"><rect class="k${i}" x="${r(cx)}" y="${y - FS}" width="${r(len * cw + 1)}" height="${LH}"/></clipPath>`;
+    s += `<g clip-path="url(#kc${i})">${text(cx, y, parts, { size: FS })}</g>`;
+    s += `<g class="q${i}"><rect class="blink" x="${r(cx + 1)}" y="${y - FS + 1}" width="${r(cw - 1)}" height="${LH - 1}" fill="${C.acid}"/></g>`;
+    t += len * cps + 0.35;
+  });
+  css += `
+@media (prefers-reduced-motion:reduce){${CODE.map((_, i) => `.k${i}`).join(',')}{transform:none}}`;
+
+  // hands: one presses a key while the other lifts
+  const up = (c) => [[c, 16, '.--.'], [c, 17, '|__|']];
+  const down = (c) => [[c, 17, '.--.']];
+  const pose = (l, rr) => [...l(3), ...rr(SW - 3)].map(([c, i, g]) => text(col(c), row(i), g, { size: FS, cls: 'p' })).join('');
+  const clear = (c) => `<rect x="${r(col(c))}" y="${row(16) - FS}" width="${r(4 * cw)}" height="${LH * 2}" fill="${C.ink}"/>`;
+  const [hands, handsCss] = frames('hd', [clear(3) + clear(SW - 3) + pose(up, down), clear(3) + clear(SW - 3) + pose(down, up)], 0.36);
+  css += handsCss;
+  s += hands;
+
+  // steam
+  const [steam, steamCss] = frames('st', [
+    text(col(SW + 6), row(15), '( )', { size: FS, cls: 'f' }) + text(col(SW + 6), row(16), ' )', { size: FS, cls: 'f' }),
+    text(col(SW + 6), row(15), ' ) ', { size: FS, cls: 'f' }) + text(col(SW + 6), row(16), '( ', { size: FS, cls: 'f' }),
+  ], 1.4);
+  css += steamCss;
+  s += steam;
+
+  return [s, css, (SW + 11) * cw, 20 * LH];
 }
 
 /* ── 00 hero ──────────────────────────────────────────────────────── */
 
 function hero() {
-  const H = 640;
+  const H = 476;
   let s = '';
   let css = '';
 
@@ -334,15 +366,10 @@ function hero() {
   }
   s += `<rect x="0" y="50" width="${W}" height="1" fill="${C.line}"/>`;
 
-  // donut, right side, behind the type
-  const DC = 50, DR = 27, DFS = 9, DLH = 11;
-  const dx = W - DC * DFS * CW - 10, dy = 150;
-  const df = donutFrames(DC, DR, 48).map((lines) =>
-    lines.map((parts, i) => (parts.length ? text(dx, dy + i * DLH + DFS, parts, { size: DFS }) : '')).join(''),
-  );
-  const [donut, donutCss] = frames('dn', df, 7.2);
-  css += donutCss;
-  s += `<g opacity=".85">${donut}</g>`;
+  // the coder, right side
+  const [scene, sceneCss] = coder(W - PAD - 45 * 9 * CW + 6, 88);
+  css += sceneCss;
+  s += scene;
 
   // meta row
   const meta = [
@@ -354,8 +381,8 @@ function hero() {
   meta.forEach(([k, v], i) => {
     const x = PAD + i * 152;
     s += `<g class="rise" style="animation-delay:${0.1 + i * 0.06}s">`;
-    s += text(x, 96, k.toUpperCase(), { size: 10, cls: 'f', extra: 'letter-spacing="1.6"' });
-    s += text(x, 114, v.startsWith('●') ? [['● ', 'a'], [v.slice(2).toUpperCase(), 'p']] : v.toUpperCase(), {
+    s += text(x, 84, k.toUpperCase(), { size: 10, cls: 'f', extra: 'letter-spacing="1.6"' });
+    s += text(x, 100, v.startsWith('●') ? [['● ', 'a'], [v.slice(2).toUpperCase(), 'p']] : v.toUpperCase(), {
       size: 10,
       extra: 'letter-spacing="1.4"',
     });
@@ -363,16 +390,16 @@ function hero() {
   });
 
   // banners — each row is wiped in left to right by a block cursor
-  const BFS = 13, BLH = 13;
+  const BFS = 12, BLH = 12;
   const bx = PAD;
-  let by = 160;
+  let by = 128;
   const banner = (rows, cls, delay0) => {
     rows.forEach((row, i) => {
       const w = row.length * BFS * CW;
       const id = `w${cls}${i}`;
       const d = r(delay0 + i * 0.07);
       s += `<clipPath id="${id}"><rect class="wipe" style="animation-delay:${d}s" x="${bx}" y="${by - 2}" width="${r(w + 4)}" height="${BLH + 2}"/></clipPath>`;
-      s += `<g clip-path="url(#${id})">${text(bx, by + BFS - 2, row, { size: BFS, cls, extra: 'letter-spacing="0"' })}</g>`;
+      s += `<g clip-path="url(#${id})">${text(bx, by + BFS - 2, blocks(row, cls), { size: BFS })}</g>`;
       s += `<rect class="sweep" style="animation-delay:${d}s;--w:${r(w)}px" x="${bx}" y="${by}" width="${r(BFS * CW)}" height="${BLH}" fill="${C.acid}"/>`;
       by += BLH;
     });
@@ -388,7 +415,7 @@ function hero() {
   banner(LAST, 'a', 0.45);
 
   // typewriter role line
-  const RFS = 18, rcw = RFS * CW, ry = by + 52;
+  const RFS = 18, rcw = RFS * CW, ry = by + 42;
   const rx = PAD + 2 * rcw;
   s += text(PAD, ry, '>', { size: RFS, cls: 'a' });
   const slot = 100 / ROLES.length;
@@ -415,8 +442,8 @@ function hero() {
 @media (prefers-reduced-motion:reduce){.r0{opacity:1}.t0{transform:none}.c0{transform:translateX(${r(ROLES[0].length * rcw)}px)}}`;
 
   // bio
-  wrap(profile.bio, 74).forEach((line, i) => {
-    s += `<g class="rise" style="animation-delay:${1 + i * 0.08}s">${text(PAD, ry + 40 + i * 21, line, { size: 13, cls: 'd' })}</g>`;
+  wrap(profile.bio, 66).forEach((line, i) => {
+    s += `<g class="rise" style="animation-delay:${1 + i * 0.08}s">${text(PAD, ry + 32 + i * 20, line, { size: 13, cls: 'd' })}</g>`;
   });
 
   // ticker bar
@@ -425,7 +452,7 @@ function hero() {
   s += `<rect x="0" y="${ty}" width="${W}" height="1" fill="${C.line}"/><rect x="0" y="${H - 1}" width="${W}" height="1" fill="${C.line}"/>`;
   const [spin, spinCss] = frames('sp', ['|', '/', '-', '\\'].map((ch) => text(PAD, ty + 28, ch, { size: 12, cls: 'a' })), 0.6);
   css += spinCss;
-  s += spin + text(PAD + 16, ty + 28, 'SCROLL', { size: 11, cls: 'a', extra: 'letter-spacing="1.8"' });
+  s += spin + text(PAD + 16, ty + 28, 'NOW', { size: 11, cls: 'a', extra: 'letter-spacing="1.8"' });
   s += `<rect x="128" y="${ty}" width="1" height="46" fill="${C.line}"/>`;
   const items = TICKER.map((t) => `* ${t.toUpperCase()}`);
   const runW = items.reduce((n, t) => n + t.length * (11 * CW + 1.8) + 48, 0);
@@ -452,221 +479,153 @@ function hero() {
   });
 }
 
-/* ── 01 about ─────────────────────────────────────────────────────── */
+/* ── compact panels ─────────────────────────────────────────────── */
 
-function about() {
-  let [s, y] = sectionHeader('01', 'about', 'cat ./about.md');
+/** `// 01 ABOUT ─────────` then `$ command█`, inside a column. */
+function miniHeader(x, y, w, index, title, command) {
+  const t = title.toUpperCase();
+  let s = text(x, y, [[`// ${index}  `, 'a'], [t, 'p b']], { size: 15, extra: 'letter-spacing="1.5"' });
+  const lx = x + (index.length + 5 + t.length) * (15 * CW + 1.5) + 8;
+  s += `<rect x="${r(lx)}" y="${y - 5}" width="${r(x + w - lx)}" height="1" fill="${C.faint}"/>`;
+  s += text(x, y + 24, [['$ ', 'a'], [command, 'd']], { size: 12 });
+  s += `<rect class="blink" x="${r(x + (command.length + 2.4) * 12 * CW)}" y="${y + 14}" width="7" height="13" fill="${C.acid}"/>`;
+  return s;
+}
+
+const COL = (W - PAD * 3) / 2; // two columns
+const X2 = PAD * 2 + COL;
+
+/* 01 about | 02 stack */
+function aboutStack() {
+  let s = miniHeader(PAD, 40, COL, '01', 'about', 'cat ./about.md');
   const lead = [
     ['I build things that run in a browser tab and things that run on a ', ''],
     ['race car', 'a'],
-    ['. From full-stack TypeScript in production to C firmware on embedded hardware — I enjoy the whole stack, down to the last byte.', ''],
+    ['.', ''],
   ];
-  // Wrap while keeping the accent run coloured.
   const words = lead.flatMap(([t, c]) => t.split(/(?<= )/).map((w) => [w, c]));
-  const LFS = 21, cols = Math.floor((W - PAD * 2) / (LFS * CW));
   const lines = [[]];
   let len = 0;
   for (const [w, c] of words) {
-    if (len + w.trimEnd().length > cols) {
-      lines.push([]);
-      len = 0;
-    }
+    if (len + w.trimEnd().length > 38) { lines.push([]); len = 0; }
     lines.at(-1).push([w, c]);
     len += w.length;
   }
-  y += 20;
-  lines.forEach((parts, i) => {
-    s += `<g class="rise" style="animation-delay:${0.6 + i * 0.08}s">${text(PAD, y + i * 32, parts, { size: LFS })}</g>`;
-  });
-  y += lines.length * 32 + 30;
-
-  // whoami box
-  const bw = 560, rowH = 26, bh = WHOAMI.length * rowH + 40;
-  s += box(PAD, y, bw, bh, 'whoami');
+  lines.forEach((parts, i) => { s += text(PAD, 98 + i * 23, parts, { size: 15 }); });
+  const by = 98 + lines.length * 23 + 6;
+  const rowH = 22, bh = WHOAMI.length * rowH + 26;
+  s += box(PAD, by, COL, bh, 'whoami');
   WHOAMI.forEach(([k, v], i) => {
-    const ty = y + 34 + i * rowH;
-    s += `<g class="rise" style="animation-delay:${1 + i * 0.07}s">`;
-    s += text(PAD + 24, ty, [[k.padEnd(7), 'd'], [': ', 'f'], [v, 'p']], { size: 13 });
-    s += '</g>';
+    const short = v.replace('Split-Dalmatia, ', '').replace(' · photography · vlogging', ' · photo · vlogs');
+    s += text(PAD + 16, by + 28 + i * rowH, [[k.padEnd(6), 'd'], [': ', 'f'], [short, 'p']], { size: 12 });
   });
+  const H1 = by + bh + 28;
 
-  // the little [ me ] diagram
-  const diagram = [
-    '  web ─────┐        ┌───── embedded',
-    '           ├─[ me ]─┤',
-    '  algo ────┘        └───── video',
-  ];
-  const dx = PAD + bw + 18;
-  const dy = y + bh / 2 - 24;
-  diagram.forEach((line, i) => {
-    const parts = line.split(/(\[ me \])/).map((p) => [p, p === '[ me ]' ? 'a' : 'd']);
-    s += text(dx, dy + i * 18, parts, { size: 11 });
-  });
-  y += bh + 40;
-  return svg({ h: y, title: `About: ${lead.map((l) => l[0]).join('')} ${WHOAMI.map((w) => w.join(': ')).join('; ')}`, body: s });
-}
-
-/* ── 02 stack ─────────────────────────────────────────────────────── */
-
-function stack() {
-  let [s, y] = sectionHeader('02', 'stack', 'ls -la ~/skills');
-  y += 12;
-  s += text(PAD, y, `total ${SKILLS.length}`, { size: 13, cls: 'd' });
-  y += 12;
-  const fs = 13, lh = 25;
-  SKILLS.forEach(([name, level, cat], i) => {
-    const ty = y + (i + 1) * lh;
+  s += miniHeader(X2, 40, COL, '02', 'stack', 'ls -la ~/skills');
+  const sorted = [...SKILLS].sort((a, b) => (a[1] === b[1] ? 0 : a[1] === 'Proficient' ? -1 : 1));
+  const half = Math.ceil(sorted.length / 2);
+  const cw2 = COL / 2;
+  sorted.forEach(([name, level], i) => {
     const pro = level === 'Proficient';
-    const bar = pro ? '████████░░' : '████░░░░░░';
-    s += `<g class="rise" style="animation-delay:${0.5 + i * 0.04}s">`;
-    s += `<rect x="${PAD - 8}" y="${ty - 17}" width="${W - PAD * 2 + 16}" height="${lh - 1}" fill="${i % 2 ? C.ink : C.ink2}"/>`;
-    s += text(PAD, ty, [
-      [pro ? '-rwxr-xr-x' : '-rw-r--r--', 'f'],
-      ['  1  ', 'f'],
-      ['domeepc  ', 'd'],
-      [cat.padEnd(11), 'd'],
-      [bar, pro ? 'a' : 'd'],
-      ['  ', ''],
-      [level.toLowerCase().padEnd(12), pro ? 'p' : 'd'],
-      [name, pro ? 'p b' : 'p'],
-    ], { size: fs });
-    s += '</g>';
+    const x = X2 + (i < half ? 0 : cw2 + 6);
+    const y = 98 + (i % half) * 26;
+    s += text(x, y, [[pro ? '████████░░ ' : '████░░░░░░ ', pro ? 'a' : 'f'], [name, pro ? 'p b' : 'd']], { size: 12 });
   });
-  y += (SKILLS.length + 1) * lh + 14;
-  s += text(PAD, y, [['# ', 'a'], ['rwx = shipping it · rw- = learning it', 'f']], { size: 12 });
-  y += 40;
-  return svg({ h: y, title: `Stack: ${SKILLS.map(([n, l]) => `${n} (${l.toLowerCase()})`).join(', ')}`, body: s });
+  const ly = 98 + half * 26 + 2;
+  s += text(X2, ly, [['# ', 'a'], ['██', 'a'], [' shipping it · ', 'd'], ['░░', 'f'], [' learning it', 'd']], { size: 11 });
+
+  const H = Math.max(H1, ly + 28);
+  s += `<rect x="${PAD + COL + PAD / 2}" y="24" width="1" height="${H - 48}" fill="${C.line}"/>`;
+  return svg({
+    h: H,
+    title: `About: I build things that run in a browser tab and things that run on a race car. ${WHOAMI.map((w) => w.join(': ')).join('; ')}. Stack: ${SKILLS.map(([n, l]) => `${n} (${l.toLowerCase()})`).join(', ')}`,
+    body: s,
+  });
 }
 
-/* ── 03 work ──────────────────────────────────────────────────────── */
-
+/* 03 work */
 function workHeader() {
-  const [s, y] = sectionHeader('03', 'work', 'git log --oneline --repos');
-  return svg({ h: y, title: 'Work: selected repositories', body: s });
+  const s = miniHeader(PAD, 40, W - PAD * 2, '03', 'work', 'git log --oneline --repos');
+  return svg({ h: 78, title: 'Work: selected repositories', body: s });
 }
 
 function repoRow(repo, i) {
-  const desc = wrap(repo.description, 70);
-  const H = 108 + desc.length * 20;
+  const H = 50;
   let s = `<rect x="0" y="0" width="${W}" height="1" fill="${C.line}"/>`;
-  s += `<rect x="0" y="${H - 1}" width="${W}" height="1" fill="${C.line}"/>`;
-  s += text(PAD, 44, String(i + 1).padStart(2, '0'), { size: 12, cls: 'a', extra: 'letter-spacing="2"' });
-  s += `<g class="rise" style="animation-delay:.1s">${text(PAD + 44, 52, repo.name, { size: 34, cls: 'b', extra: 'letter-spacing="-1"' })}</g>`;
-  s += text(W - PAD - 34 * CW, 50, '↗', { size: 30, cls: 'a' });
-  desc.forEach((line, k) => {
-    s += text(PAD + 44, 82 + k * 20, line, { size: 13, cls: 'd' });
-  });
-  const my = 82 + desc.length * 20 + 6;
-  s += `<text x="${PAD + 44}" y="${my}" font-size="12"><tspan fill="${repo.color}">■ </tspan><tspan class="p">${esc(repo.language)}</tspan><tspan class="f"> · </tspan><tspan class="d">updated ${repo.updated}</tspan>${
-    repo.homepage ? `<tspan class="f"> · </tspan><tspan class="a">${esc(repo.homepage)}</tspan>` : ''
-  }</text>`;
+  s += text(PAD, 31, String(i + 1).padStart(2, '0'), { size: 11, cls: 'a', extra: 'letter-spacing="2"' });
+  s += text(PAD + 34, 32, repo.name, { size: 19, cls: 'b' });
+  const nx = PAD + 34 + repo.name.length * 19 * CW + 18;
+  s += `<text x="${r(nx)}" y="31" font-size="11"><tspan fill="${repo.color}">■ </tspan><tspan class="p">${esc(repo.language)}</tspan></text>`;
+  const dx = nx + (repo.language.length + 2) * 11 * CW + 16;
+  const max = Math.floor((W - PAD - 40 - dx) / (12 * CW));
+  const d = repo.description.length > max ? repo.description.slice(0, max - 1).trimEnd() + '…' : repo.description;
+  s += text(dx, 31, d, { size: 12, cls: 'd' });
+  s += text(W - PAD - 12, 32, '↗', { size: 18, cls: 'a' });
   return svg({ h: H, title: `${repo.name} — ${repo.description} (${repo.language})`, body: s });
 }
 
-/* ── 04 log ───────────────────────────────────────────────────────── */
-
+/* 04 log | 05 contact */
 function shortSha(input) {
   let h = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) h = Math.imul(h ^ input.charCodeAt(i), 16777619);
   return (h >>> 0).toString(16).padStart(8, '0').slice(0, 7);
 }
 
-function log() {
-  let [s, y] = sectionHeader('04', 'log', 'git log --graph --all');
-  y += 10;
-  const gx = PAD + 8, cx = PAD + 44;
-  TIMELINE.forEach((e, i) => {
-    const desc = wrap(e.description, 86);
-    const h = 120 + desc.length * 20;
-    s += `<g class="rise" style="animation-delay:${0.4 + i * 0.1}s">`;
-    s += text(gx - 6, y + 14, e.current ? '◉' : '*', { size: 17, cls: 'a' });
-    if (i < TIMELINE.length - 1) {
-      s += `<line x1="${gx + 0.5}" y1="${y + 24}" x2="${gx + 0.5}" y2="${y + h + 2}" stroke="${C.faint}" stroke-dasharray="6 4"/>`;
-    }
-    const head = i === 0 ? [[' (', 'd'], ['HEAD', 'a'], [' → ', 'd'], ['main', 'p'], [')', 'd']] : [];
-    s += text(cx, y + 12, [[`commit ${shortSha(e.title)}`, 'a'], ...head, [` [${e.type}]`, 'd']], { size: 12 });
-    s += text(cx, y + 32, [[`Date:  ${e.year}`, 'd'], ...(e.current ? [['   ● running', 'a']] : [])], { size: 12 });
-    s += text(cx, y + 66, e.title, { size: 22, cls: 'b' });
-    s += text(cx, y + 88, `@ ${e.at}`, { size: 13, cls: 'd' });
-    s += `<rect x="${cx}" y="${y + 102}" width="1" height="${desc.length * 20 + 4}" fill="${C.line}"/>`;
-    desc.forEach((line, k) => {
-      s += text(cx + 16, y + 118 + k * 20, line, { size: 13, cls: 'd' });
-    });
-    s += '</g>';
-    y += h + 18;
-  });
-  s += text(gx - 3, y + 10, '$', { size: 13, cls: 'a' });
-  s += `<rect class="blink" x="${cx}" y="${y - 1}" width="8" height="14" fill="${C.acid}"/>`;
-  y += 44;
-  return svg({
-    h: y,
-    title: `Log: ${TIMELINE.map((e) => `${e.year} ${e.title} @ ${e.at}`).join('; ')}`,
-    body: s,
-  });
-}
-
-/* ── 05 contact ───────────────────────────────────────────────────── */
-
-function contact() {
-  let s = '';
+function logContact() {
+  let s = `<rect x="0" y="0" width="${W}" height="1" fill="${C.line}"/>`;
   let css = '';
-  const y0 = 44;
-  s += text(PAD, y0, '// 05', { size: 12, cls: 'a', extra: 'letter-spacing="2.4"' });
-  s += `<rect class="draw" x="${PAD + 70}" y="${y0 - 4.5}" width="${W - PAD * 2 - 70 - 110}" height="1" fill="${C.faint}"/>`;
-  s += text(W - PAD - 7 * (12 * CW + 2.4), y0, 'CONTACT', { size: 12, cls: 'd', extra: 'letter-spacing="2.4"' });
-
-  // SAY HI banner
-  const BFS = 15;
-  let by = y0 + 38;
-  TALK.forEach((row, i) => {
-    s += `<g class="rise" style="animation-delay:${0.15 + i * 0.06}s">${text(PAD, by + BFS - 2, row, { size: BFS, cls: 'a' })}</g>`;
-    by += BFS;
+  s += miniHeader(PAD, 40, COL, '04', 'log', 'git log --graph --all');
+  let y = 92;
+  const gx = PAD + 5, cx = PAD + 26;
+  TIMELINE.forEach((e, i) => {
+    s += text(gx - 5, y + 4, e.current ? '◉' : '*', { size: 14, cls: 'a' });
+    if (i < TIMELINE.length - 1) s += `<line x1="${gx + 0.5}" y1="${y + 11}" x2="${gx + 0.5}" y2="${y + 38}" stroke="${C.faint}" stroke-dasharray="4 3"/>`;
+    const title = e.title.replace(' — Lead Developer', '').replace('Embedded Systems: ', '');
+    s += text(cx, y + 4, title, { size: 13, cls: 'b' });
+    s += text(cx, y + 22, [[shortSha(e.title) + ' ', 'a'], [`${e.year.replace(' – Present', '–now')} · @ ${e.at}`, 'd']], { size: 11 });
+    y += 44;
   });
-  const lines = wrap("Got a project, an internship, or just want to talk race cars and C pointers? My inbox is open.", 34);
-  lines.forEach((l, i) => {
-    s += text(PAD + 40 * BFS * CW + 34, y0 + 60 + i * 21, l, { size: 13, cls: 'd' });
-  });
+  const H1 = y + 6;
 
-  // tty1 — a scripted session that types itself, on a loop
-  const ty = by + 44, th = 216, tw = W - PAD * 2;
-  s += box(PAD, ty, tw, th, 'tty1');
+  // say hi + tty
+  s += miniHeader(X2, 40, COL, '05', 'contact', 'echo "say hi"');
+  const BFS = 9;
+  TALK.forEach((row, i) => { s += text(X2, 92 + i * BFS + BFS - 2, blocks(row, 'a'), { size: BFS }); });
+  const ty = 92 + 6 * BFS + 22, th = H1 - ty - 4;
+  s += box(X2, ty, COL, th, 'tty1');
   const P = 'guest@domeepc:~$ ';
   const session = [
-    ['out', "type 'help' to list commands"],
     ['in', 'whoami'],
-    ['out', `${profile.name} — Computer Engineering Student & Developer`],
+    ['out', 'Domagoj Milardović — CE student & dev'],
     ['in', 'location'],
-    ['out', `${profile.location} · ${profile.coords}`],
+    ['out', 'Kaštela, Split, Croatia'],
     ['in', 'sudo hire-me'],
-    ['out', 'permission granted. routing you to linkedin ...'],
+    ['out', 'permission granted. → linkedin'],
   ];
-  const period = 14;
+  const period = 12;
   const step = 100 / (session.length + 3);
+  const show = (cls, at) => `
+.${cls}{opacity:0;animation:${cls} ${period}s steps(1,end) infinite}
+@keyframes ${cls}{0%,${at}%{opacity:0}${r(at + 0.01)}%,96%{opacity:1}97%,100%{opacity:0}}`;
   session.forEach(([kind, t], i) => {
-    const at = r(i === 0 ? 0 : (i + 0.5) * step);
-    css += `
-.s${i}{opacity:0;animation:s${i} ${period}s steps(1,end) infinite}
-@keyframes s${i}{0%,${at}%{opacity:0}${r(at + 0.01)}%,96%{opacity:1}97%,100%{opacity:0}}`;
-    const y = ty + 36 + i * 24;
-    s += `<g class="s${i}">${text(
-      PAD + 22,
-      y,
-      kind === 'in' ? [[P, 'a'], [t, 'p']] : [[t, 'd']],
-      { size: 13 },
-    )}</g>`;
+    css += show(`s${i}`, r((i + 0.5) * step));
+    s += `<g class="s${i}">${text(X2 + 16, ty + 28 + i * 20, kind === 'in' ? [[P, 'a'], [t, 'p']] : [[t, 'd']], { size: 12 })}</g>`;
   });
+  css += show('s-end', r((session.length + 0.8) * step));
+  const ly = ty + 28 + session.length * 20;
+  s += `<g class="s-end">${text(X2 + 16, ly, P, { size: 12, cls: 'a' })}<rect class="blink" x="${r(X2 + 16 + P.length * 12 * CW + 2)}" y="${ly - 10}" width="7" height="13" fill="${C.acid}"/></g>`;
   css += `
-@media (prefers-reduced-motion:reduce){${session.map((_, i) => `.s${i}`).join(',')}{opacity:1}}`;
-  const ly = ty + 36 + session.length * 24;
-  const lastAt = r((session.length + 0.8) * step);
-  css += `
-.s-end{opacity:0;animation:s-end ${period}s steps(1,end) infinite}
-@keyframes s-end{0%,${lastAt}%{opacity:0}${r(lastAt + 0.01)}%,96%{opacity:1}97%,100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.s-end{opacity:1}}`;
-  s += `<g class="s-end">${text(PAD + 22, ly, P, { size: 13, cls: 'a' })}`;
-  s += `<rect class="blink" x="${r(PAD + 22 + P.length * 13 * CW + 2)}" y="${ly - 11}" width="8" height="14" fill="${C.acid}"/></g>`;
-  const H = ty + th + 36;
-  return svg({ h: H, title: 'Say hi — a terminal session: whoami, location, sudo hire-me', body: s, css });
+@media (prefers-reduced-motion:reduce){${[...session.keys()].map((i) => `.s${i}`).join(',')},.s-end{opacity:1}}`;
+
+  s += `<rect x="${PAD + COL + PAD / 2}" y="24" width="1" height="${H1 - 40}" fill="${C.line}"/>`;
+  const H = H1 + 30;
+  s += `<rect x="0" y="${H - 1}" width="${W}" height="1" fill="${C.line}"/>`;
+  return svg({
+    h: H,
+    title: `Log: ${TIMELINE.map((e) => `${e.year} ${e.title} @ ${e.at}`).join('; ')}. Contact: say hi — sudo hire-me.`,
+    body: s,
+    css,
+  });
 }
 
 /* ── buttons + footer ─────────────────────────────────────────────── */
@@ -676,7 +635,7 @@ function button(label, arrow, primary = false) {
   const w = Math.round((label.length + 3) * (fs * CW + ls) + 48);
   const h = 46;
   const body = `<rect x=".5" y=".5" width="${w - 1}" height="${h - 1}" fill="${primary ? C.acid : C.ink}" stroke="${primary ? C.acid : C.paper}"/>
-${text(24, 28, [[label.toUpperCase(), primary ? 'k' : 'p'], ['  ' + arrow, primary ? 'k' : 'a']], { size: fs, extra: `letter-spacing="${ls}"` })}`;
+${text(24, 28, [[label.toUpperCase(), 'p'], ['  ' + arrow, primary ? 'p' : 'a']], { size: fs, extra: `letter-spacing="${ls}"` })}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">
 <title>${esc(label)}</title>
 <style>${FONT_CSS}${BASE_CSS}</style>
@@ -685,30 +644,18 @@ ${body}
 `;
 }
 
-function footer() {
-  const H = 64;
-  let s = `<rect width="${W}" height="1" fill="${C.line}"/>`;
-  s += text(PAD, 38, `© ${new Date().getFullYear()} ${profile.name}`, { size: 11, cls: 'd', extra: 'letter-spacing="1.4"' });
-  const t = 'built with svg + markdown · rendered in 0x7f characters';
-  s += text(W - PAD - t.length * (11 * CW + 0.6), 38, t, { size: 11, cls: 'f', extra: 'letter-spacing=".6"' });
-  return svg({ h: H, title: `© ${profile.name}`, body: s });
-}
-
 /* ── write ────────────────────────────────────────────────────────── */
 
 const files = {
   'hero.svg': hero(),
-  'about.svg': about(),
-  'stack.svg': stack(),
+  'about-stack.svg': aboutStack(),
   'work.svg': workHeader(),
   ...Object.fromEntries(REPOS.map((repo, i) => [`work-${repo.name.toLowerCase()}.svg`, repoRow(repo, i)])),
-  'log.svg': log(),
-  'contact.svg': contact(),
+  'log-contact.svg': logContact(),
   'btn-portfolio.svg': button('portfolio', '→', true),
   'btn-github.svg': button('github', '→'),
   'btn-linkedin.svg': button('linkedin', '→'),
   'btn-email.svg': button('email', '→'),
-  'footer.svg': footer(),
 };
 for (const [name, content] of Object.entries(files)) {
   writeFileSync(join(OUT, name), content);
