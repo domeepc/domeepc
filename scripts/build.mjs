@@ -141,18 +141,15 @@ const TALK = [
 
 /* ── design tokens (portfolio globals.css) ─────────────────────────── */
 
-// Light edition of the portfolio palette: same tokens, inverted ground.
-// Bright acid is kept for fills (blocks, cursors, primary button); accent text
-// uses a deeper lime so it stays readable on white (≈5.9:1).
 const C = {
-  ink: '#ffffff',
-  ink2: '#f6f5f1',
-  paper: '#0b0b0a',
-  dim: '#6b6860',
-  faint: '#bdb9b0',
-  line: '#e4e1da',
+  ink: '#0b0b0a',
+  ink2: '#121210',
+  paper: '#ebe8e1',
+  dim: '#8b887f',
+  faint: '#3a3935',
+  line: '#262522',
   acid: '#c8ff2e',
-  accent: '#4f7000',
+  accent: '#c8ff2e', // accent text = acid on the dark ground
 };
 const W = 880; // GitHub's profile README column
 const PAD = 32;
@@ -206,7 +203,7 @@ function text(x, y, parts, { size = 13, cls = '', extra = '' } = {}) {
 
 /** Banner row → runs: solid blocks in one tone, the ╗═║ shadow strokes in another. */
 function blocks(row, cls) {
-  const [solid, shade] = cls === 'a' ? ['A', 'p'] : ['p', 'f'];
+  const [solid, shade] = cls === 'a' ? ['A', 'a'] : ['p', 'p'];
   return row.split(/(█+)/).filter(Boolean).map((t) => [t, t[0] === '█' ? solid : shade]);
 }
 
@@ -635,7 +632,7 @@ function button(label, arrow, primary = false) {
   const w = Math.round((label.length + 3) * (fs * CW + ls) + 48);
   const h = 46;
   const body = `<rect x=".5" y=".5" width="${w - 1}" height="${h - 1}" fill="${primary ? C.acid : C.ink}" stroke="${primary ? C.acid : C.paper}"/>
-${text(24, 28, [[label.toUpperCase(), 'p'], ['  ' + arrow, primary ? 'p' : 'a']], { size: fs, extra: `letter-spacing="${ls}"` })}`;
+${text(24, 28, [[label.toUpperCase(), primary ? 'k' : 'p'], ['  ' + arrow, primary ? 'k' : 'a']], { size: fs, extra: `letter-spacing="${ls}"` })}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">
 <title>${esc(label)}</title>
 <style>${FONT_CSS}${BASE_CSS}</style>
