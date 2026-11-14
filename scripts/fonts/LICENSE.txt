@@ -1,0 +1,2 @@
+Subset of JetBrains Mono (Regular, ExtraBold) by JetBrains, licensed under the SIL Open Font License 1.1.
+https://github.com/JetBrains/JetBrainsMono
